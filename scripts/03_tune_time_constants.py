@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""Milestone 2: Equal-budget hyperparameter tuning on clean training-participant validation split (Slides 4, 8, 9)."""
-
-from __future__ import annotations
-
 import json
 from pathlib import Path
 import sys
@@ -28,10 +23,9 @@ def evaluate_reservoir_across_alphas(
     X_val_gap20: np.ndarray,
     X_val_gap30: np.ndarray,
     y_val: np.ndarray,
-    activity_names: list[str],
-    alpha_grid: list[float],
-) -> list[dict[str, float]]:
-    """Run reservoir once on fit and val splits, then evaluate all readout regularization values."""
+    activity_names: list,
+    alpha_grid: list,
+):
     F_fit = reservoir.run_numpy(X_fit).features
     F_val_clean = reservoir.run_numpy(X_val_clean).features
     F_val_gap20 = reservoir.run_numpy(X_val_gap20).features
@@ -59,7 +53,7 @@ def evaluate_reservoir_across_alphas(
     return out_records
 
 
-def main() -> None:
+def main():
     with open(ROOT / "configs" / "default_experiment.yaml", "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
 
@@ -71,7 +65,6 @@ def main() -> None:
     res_cfg = cfg["reservoir"]
     tune_cfg = cfg["tuning"]
 
-    # Create validation corruption masks for diagnostic logging, while selecting strictly on clean validation data (Slide 9)
     val_masks = generate_intermittent_gap_masks(
         n_windows=len(splits.X_val),
         window_length=splits.X_val.shape[1],
@@ -83,11 +76,9 @@ def main() -> None:
     X_val_gap20 = apply_corruption_mask(splits.X_val, val_masks[0.20])
     X_val_gap30 = apply_corruption_mask(splits.X_val, val_masks[0.30])
 
-    print("=== Milestone 2: Equal-Budget Clean Validation Tuning (24 Configs Each, Training Participants Only) ===")
+    print("Tuning time constants on validation split...")
+    tuning_summary = {"homogeneous": [], "heterogeneous": []}
 
-    tuning_summary: dict[str, object] = {"homogeneous": [], "heterogeneous": []}
-
-    # 1. Tune Homogeneous LIF (6 tau candidates x 4 alpha candidates = 24 configs, selected on clean val F1)
     best_hom_score = -1.0
     best_hom_cfg = None
     for tau_ms in tune_cfg["homogeneous_tau_candidates_ms"]:
@@ -124,7 +115,6 @@ def main() -> None:
                 best_hom_score = entry["val_f1_clean"]
                 best_hom_cfg = entry
 
-    # 2. Tune Heterogeneous LIF (6 tau triplets x 4 alpha candidates = 24 configs, selected on clean val F1)
     best_het_score = -1.0
     best_het_cfg = None
     for tau_triplet in tune_cfg["heterogeneous_tau_candidates_ms"]:
@@ -169,9 +159,8 @@ def main() -> None:
     with open(out_dir / "tuning_results.json", "w", encoding="utf-8") as f:
         json.dump(tuning_summary, f, indent=2)
 
-    print(f"Selected Homogeneous Config (by Clean Val F1):   {best_hom_cfg}")
-    print(f"Selected Heterogeneous Config (by Clean Val F1): {best_het_cfg}")
-    print(f"Saved validation tuning results to {out_dir / 'tuning_results.json'}")
+    print("Best homogeneous:", best_hom_cfg)
+    print("Best heterogeneous:", best_het_cfg)
 
 
 if __name__ == "__main__":

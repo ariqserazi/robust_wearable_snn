@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""Milestone 0: Download UCI HAR, build participant-separated splits, and save corruption masks."""
-
-from __future__ import annotations
-
 import json
 from pathlib import Path
 import sys
@@ -17,7 +12,7 @@ from src.data.corruption import generate_channel_loss_masks, generate_intermitte
 from src.data.dataset import build_har_splits
 
 
-def main() -> None:
+def main():
     with open(ROOT / "configs" / "default_experiment.yaml", "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
 
@@ -46,7 +41,6 @@ def main() -> None:
         channel_names=splits.channel_names,
     )
 
-    # Save splits and masks for reproducibility (Slide 13)
     np.savez_compressed(
         proc_dir / "uci_har_splits.npz",
         X_train_full=splits.X_train_full,
@@ -87,12 +81,11 @@ def main() -> None:
     with open(proc_dir / "metadata.json", "w", encoding="utf-8") as f:
         json.dump(meta, f, indent=2)
 
-    print("=== UCI HAR Data & Corruption Masks Prepared ===")
-    print(f"Train full: {splits.X_train_full.shape} ({len(np.unique(splits.subj_train_full))} participants)")
-    print(f"  -> Fit split: {splits.X_fit.shape} ({len(meta['fit_participants'])} participants: {meta['fit_participants']})")
-    print(f"  -> Val split: {splits.X_val.shape} ({len(meta['val_participants'])} participants: {meta['val_participants']})")
-    print(f"Official Test: {splits.X_test.shape} ({len(meta['test_participants'])} participants: {meta['test_participants']})")
-    print(f"Saved processed tensors and masks to: {proc_dir}")
+    print("Prepared UCI HAR splits and corruption masks:")
+    print(f"  Train full: {splits.X_train_full.shape}")
+    print(f"  Fit split:  {splits.X_fit.shape}")
+    print(f"  Val split:  {splits.X_val.shape}")
+    print(f"  Test split: {splits.X_test.shape}")
 
 
 if __name__ == "__main__":

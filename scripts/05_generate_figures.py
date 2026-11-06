@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""Milestone 4: Generate publication-quality plots, mechanistic raster demo, and markdown summary."""
-
-from __future__ import annotations
-
 import json
 from pathlib import Path
 import sys
@@ -24,7 +19,7 @@ from src.evaluation.plots import (
 from src.spiking.lif_reservoir import SpikingLIFReservoir, encode_sensory_inputs
 
 
-def main() -> None:
+def main():
     with open(ROOT / "configs" / "default_experiment.yaml", "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
 
@@ -40,7 +35,6 @@ def main() -> None:
     f3 = plot_channel_loss(results, fig_dir)
     f4 = plot_activity_cost_tradeoff(results, fig_dir)
 
-    # Build single-window mechanistic demo data (Walking window with a 30% middle gap)
     splits = build_har_splits(
         raw_dir=ROOT / cfg["data"]["raw_dir"],
         include_total_acc=bool(cfg["data"]["include_total_acc"]),
@@ -48,9 +42,9 @@ def main() -> None:
     )
     walking_indices = np.where(splits.y_test == 0)[0]
     w_idx = int(walking_indices[0])
-    x_clean = splits.X_test[w_idx].copy()  # (128, C)
+    x_clean = splits.X_test[w_idx].copy()
     x_corrupt = x_clean.copy()
-    gap_start, gap_end = 45, 83  # 38 steps = 30% of 128
+    gap_start, gap_end = 45, 83
     x_corrupt[gap_start:gap_end, :] = 0.0
 
     het_tau = results["selected_hyperparameters"]["heterogeneous_tau_triplet_ms"]
@@ -71,7 +65,6 @@ def main() -> None:
         seed=0,
     )
 
-    # Run single window and capture traces
     B_in = encode_sensory_inputs(x_corrupt[None, :, :])
     T = 128
     N = res_het.n_neurons
@@ -82,15 +75,16 @@ def main() -> None:
     traces = np.zeros((T, N), dtype=np.float32)
     alpha = res_het.alpha[None, :]
     one_minus_alpha = 1.0 - alpha
+    v_gain = np.power(one_minus_alpha, 0.65).astype(np.float32) * 1.45
 
     for t in range(T):
         I_rec = r @ res_het.W_rec
         drive = I_ff[:, t, :] + I_rec
-        v = alpha * v + one_minus_alpha * (drive * 2.2)
+        v = alpha * v + v_gain * drive
         fired = (v >= res_het.v_th).astype(np.float32)
         spikes[t, :] = fired[0]
         v = np.maximum(0.0, v - fired * res_het.v_th)
-        r = alpha * r + one_minus_alpha * fired
+        r = alpha * r + one_minus_alpha * fired + 0.15 * one_minus_alpha * v
         traces[t, :] = r[0]
 
     demo_data = {
@@ -105,9 +99,8 @@ def main() -> None:
     }
     f5 = plot_neural_dynamics_demo(demo_data, fig_dir)
 
-    print("=== Generated All 5 Figures ===")
     for p in [f1, f2, f3, f4, f5]:
-        print(f"  -> {p}")
+        print(f"Saved {p.name}")
 
 
 if __name__ == "__main__":

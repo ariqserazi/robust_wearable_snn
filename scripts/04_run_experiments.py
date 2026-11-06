@@ -1,12 +1,6 @@
-#!/usr/bin/env python3
-"""Milestone 3: Paired-seed evaluation across clean, intermittent gaps, and channel loss (Slides 8-10)."""
-
-from __future__ import annotations
-
 import json
 from pathlib import Path
 import sys
-import numpy as np
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,7 +20,7 @@ from src.spiking.lif_reservoir import SpikingLIFReservoir
 from src.spiking.readout import SpikingReservoirClassifier
 
 
-def main() -> None:
+def main():
     with open(ROOT / "configs" / "default_experiment.yaml", "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
 
@@ -39,7 +33,6 @@ def main() -> None:
     seeds = [int(s) for s in cfg["seeds"]]
     fracs = [float(f) for f in cfg["corruption"]["intermittent_fractions"]]
 
-    # Load validation-selected time constants if available, else use sensible defaults
     tuning_path = ROOT / "results" / "tuning_results.json"
     if tuning_path.exists():
         with open(tuning_path, "r", encoding="utf-8") as f:
@@ -49,10 +42,9 @@ def main() -> None:
         het_tau = [float(x) for x in tuned["selected_heterogeneous"]["tau_triplet_ms"]]
         het_alpha = float(tuned["selected_heterogeneous"]["readout_alpha"])
     else:
-        hom_tau, hom_alpha = 80.0, 10.0
-        het_tau, het_alpha = [25.0, 100.0, 400.0], 10.0
+        hom_tau, hom_alpha = 80.0, 5.0
+        het_tau, het_alpha = [40.0, 160.0, 640.0], 5.0
 
-    # Generate shared test corruption masks
     n_test, window_len, n_channels = splits.X_test.shape
     intermittent_masks = generate_intermittent_gap_masks(
         n_windows=n_test,
@@ -67,7 +59,6 @@ def main() -> None:
         channel_names=splits.channel_names,
     )
 
-    # Pre-build masked test sets once so every model sees identical corrupted inputs
     X_test_intermittent = {
         f"{f:.2f}": apply_corruption_mask(splits.X_test, intermittent_masks[round(f, 2)])
         for f in fracs
@@ -77,7 +68,7 @@ def main() -> None:
         for ch in splits.channel_names
     }
 
-    results: dict[str, object] = {
+    results = {
         "seeds": seeds,
         "intermittent_fractions": [f"{f:.2f}" for f in fracs],
         "channel_names": splits.channel_names,
@@ -96,10 +87,8 @@ def main() -> None:
         },
     }
 
-    print("=== Milestone 3: Running Paired-Seed Experiments (Train Clean -> Test Clean & Corrupted) ===")
     for seed in seeds:
-        print(f"\n--- Paired Seed {seed} ---")
-        # 1. Heterogeneous LIF (Experimental)
+        print(f"Seed {seed}:")
         res_het = SpikingLIFReservoir(
             n_inputs=n_channels,
             n_neurons=int(res_cfg["n_neurons"]),
@@ -119,7 +108,6 @@ def main() -> None:
             splits.X_train_full, splits.y_train_full
         )
 
-        # 2. Homogeneous LIF (Control)
         res_hom = SpikingLIFReservoir(
             n_inputs=n_channels,
             n_neurons=int(res_cfg["n_neurons"]),
@@ -139,7 +127,6 @@ def main() -> None:
             splits.X_train_full, splits.y_train_full
         )
 
-        # 3. Non-Spiking ESN Baseline
         clf_esn = LeakyESNClassifier(
             n_inputs=n_channels,
             n_neurons=int(res_cfg["n_neurons"]),
@@ -153,12 +140,10 @@ def main() -> None:
             seed=seed,
         ).fit(splits.X_train_full, splits.y_train_full)
 
-        # 4. Feature Classifier Baseline
         clf_feat = WindowFeatureClassifier(alpha=10.0, seed=seed).fit(
             splits.X_train_full, splits.y_train_full
         )
 
-        # Evaluate Spiking Models
         for model_name, clf_spk in [
             ("Heterogeneous LIF", clf_het),
             ("Homogeneous LIF", clf_hom),
@@ -197,13 +182,11 @@ def main() -> None:
 
             results["models"][model_name]["seeds"].append(seed_entry)
             print(
-                f"  {model_name:18s} | Clean F1={seed_entry['intermittent']['0.00']['macro_f1']*100:5.2f}% "
-                f"| 20% Gap F1={seed_entry['intermittent']['0.20']['macro_f1']*100:5.2f}% "
-                f"| 30% Gap F1={seed_entry['intermittent']['0.30']['macro_f1']*100:5.2f}% "
-                f"| Spikes/win={seed_entry['intermittent']['0.00']['mean_spikes_per_window']:6.1f}"
+                f"  {model_name}: clean={seed_entry['intermittent']['0.00']['macro_f1']:.4f}, "
+                f"gap20={seed_entry['intermittent']['0.20']['macro_f1']:.4f}, "
+                f"gap30={seed_entry['intermittent']['0.30']['macro_f1']:.4f}"
             )
 
-        # Evaluate Conventional Baselines
         for model_name, clf_base in [
             ("Non-Spiking ESN", clf_esn),
             ("Feature Classifier", clf_feat),
@@ -229,16 +212,15 @@ def main() -> None:
 
             results["models"][model_name]["seeds"].append(seed_entry)
             print(
-                f"  {model_name:18s} | Clean F1={seed_entry['intermittent']['0.00']['macro_f1']*100:5.2f}% "
-                f"| 20% Gap F1={seed_entry['intermittent']['0.20']['macro_f1']*100:5.2f}% "
-                f"| 30% Gap F1={seed_entry['intermittent']['0.30']['macro_f1']*100:5.2f}%"
+                f"  {model_name}: clean={seed_entry['intermittent']['0.00']['macro_f1']:.4f}, "
+                f"gap20={seed_entry['intermittent']['0.20']['macro_f1']:.4f}, "
+                f"gap30={seed_entry['intermittent']['0.30']['macro_f1']:.4f}"
             )
 
     out_dir = ROOT / "results"
     out_dir.mkdir(parents=True, exist_ok=True)
     with open(out_dir / "experiment_results.json", "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
-    print(f"\nSaved complete experiment results to {out_dir / 'experiment_results.json'}")
 
 
 if __name__ == "__main__":

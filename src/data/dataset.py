@@ -1,7 +1,3 @@
-"""Load UCI HAR inertial signals, preserve participant splits, and standardize without leakage."""
-
-from __future__ import annotations
-
 from dataclasses import dataclass
 from pathlib import Path
 import numpy as np
@@ -35,40 +31,36 @@ ALL_9_CHANNELS = CORE_6_CHANNELS + [
 
 @dataclass
 class HARDataSplits:
-    """Container for leak-free standardized UCI HAR splits."""
+    X_train_full: np.ndarray
+    y_train_full: np.ndarray
+    subj_train_full: np.ndarray
 
-    X_train_full: np.ndarray       # (7352, 128, C) standardized using train_full stats
-    y_train_full: np.ndarray       # (7352,) int labels 0..5
-    subj_train_full: np.ndarray    # (7352,) participant IDs
-
-    X_fit: np.ndarray              # Subset of training participants for hyperparameter fitting
+    X_fit: np.ndarray
     y_fit: np.ndarray
     subj_fit: np.ndarray
 
-    X_val: np.ndarray              # Held-out training participants for hyperparameter selection
+    X_val: np.ndarray
     y_val: np.ndarray
     subj_val: np.ndarray
 
-    X_test: np.ndarray             # (2947, 128, C) official participant-separated test set
-    y_test: np.ndarray             # (2947,) int labels 0..5
-    subj_test: np.ndarray          # (2947,) participant IDs
+    X_test: np.ndarray
+    y_test: np.ndarray
+    subj_test: np.ndarray
 
-    channel_names: list[str]
-    activity_names: list[str]
-    scaler_mean: np.ndarray        # (1, 1, C)
-    scaler_std: np.ndarray         # (1, 1, C)
+    channel_names: list
+    activity_names: list
+    scaler_mean: np.ndarray
+    scaler_std: np.ndarray
 
 
-def _load_split_raw(dataset_dir: Path, split: str, channels: list[str]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Load raw inertial signal matrices, labels (0-indexed), and subject IDs for a split."""
+def _load_split_raw(dataset_dir: Path, split: str, channels: list):
     signals_dir = dataset_dir / split / "Inertial Signals"
     channel_arrays = []
     for ch in channels:
         fpath = signals_dir / f"{ch}_{split}.txt"
-        arr = np.loadtxt(fpath, dtype=np.float32)  # (N_windows, 128)
+        arr = np.loadtxt(fpath, dtype=np.float32)
         channel_arrays.append(arr)
 
-    # Stack to (N_windows, 128, C)
     X = np.stack(channel_arrays, axis=-1)
     y = np.loadtxt(dataset_dir / split / f"y_{split}.txt", dtype=np.int64) - 1
     subj = np.loadtxt(dataset_dir / split / f"subject_{split}.txt", dtype=np.int64)
@@ -76,43 +68,35 @@ def _load_split_raw(dataset_dir: Path, split: str, channels: list[str]) -> tuple
 
 
 def build_har_splits(
-    raw_dir: str | Path = "data/raw",
-    include_total_acc: bool = True,
-    val_participant_count: int = 5,
-    split_seed: int = 42,
-) -> HARDataSplits:
-    """Load UCI HAR, create participant-separated validation split, and fit standardization cleanly."""
+    raw_dir="data/raw",
+    include_total_acc=True,
+    val_participant_count=5,
+    split_seed=42,
+):
     dataset_dir = ensure_uci_har_downloaded(raw_dir)
     channels = ALL_9_CHANNELS if include_total_acc else CORE_6_CHANNELS
 
     X_train_raw, y_train_full, subj_train_full = _load_split_raw(dataset_dir, "train", channels)
     X_test_raw, y_test, subj_test = _load_split_raw(dataset_dir, "test", channels)
 
-    # Verify zero participant overlap between official train and test
     train_subjects = np.unique(subj_train_full)
     test_subjects = np.unique(subj_test)
-    assert len(np.intersect1d(train_subjects, test_subjects)) == 0, "Participant leakage detected!"
+    assert len(np.intersect1d(train_subjects, test_subjects)) == 0
 
-    # Select validation participants strictly from training participants
+    # Hold out validation participants from the training set only
     rng = np.random.default_rng(split_seed)
     shuffled_train_subj = rng.permutation(train_subjects)
     val_subjects = np.sort(shuffled_train_subj[:val_participant_count])
-    fit_subjects = np.sort(shuffled_train_subj[val_participant_count:])
 
     val_mask = np.isin(subj_train_full, val_subjects)
     fit_mask = ~val_mask
 
-    # Fit standardization strictly on fit_mask for validation experiments,
-    # and on train_full for final clean training -> test evaluation.
-    # Notice: to prevent even subtle validation leakage during tuning, we standardize
-    # X_fit and X_val using statistics from X_fit only!
     fit_mean = X_train_raw[fit_mask].mean(axis=(0, 1), keepdims=True)
     fit_std = X_train_raw[fit_mask].std(axis=(0, 1), keepdims=True) + 1e-8
 
     X_fit = (X_train_raw[fit_mask] - fit_mean) / fit_std
     X_val = (X_train_raw[val_mask] - fit_mean) / fit_std
 
-    # Standardize full training set and official test set using training-participants-only statistics
     train_mean = X_train_raw.mean(axis=(0, 1), keepdims=True)
     train_std = X_train_raw.std(axis=(0, 1), keepdims=True) + 1e-8
 

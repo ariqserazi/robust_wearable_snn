@@ -1,7 +1,3 @@
-"""Small non-spiking reservoir baseline (Leaky Echo State Network) with matched connectivity."""
-
-from __future__ import annotations
-
 import time
 import numpy as np
 
@@ -10,12 +6,10 @@ from src.spiking.readout import BalancedRidgeReadout
 
 
 class LeakyESNClassifier:
-    """Non-spiking continuous reservoir baseline matched to the LIF reservoir size and graph."""
-
     def __init__(
         self,
         n_inputs: int,
-        n_neurons: int = 256,
+        n_neurons: int = 128,
         tau_ms: float = 80.0,
         dt_ms: float = 20.0,
         p_rec: float = 0.15,
@@ -24,7 +18,7 @@ class LeakyESNClassifier:
         n_temporal_bins: int = 4,
         readout_alpha: float = 10.0,
         seed: int = 0,
-    ) -> None:
+    ):
         self.n_inputs = n_inputs
         self.n_encoded_inputs = n_inputs * 3
         self.n_neurons = n_neurons
@@ -46,7 +40,10 @@ class LeakyESNClassifier:
 
         mask_rec = conn_rng.random((self.n_neurons, self.n_neurons)) < self.p_rec
         np.fill_diagonal(mask_rec, False)
-        W_rec = conn_rng.normal(0.0, 1.0, size=(self.n_neurons, self.n_neurons)).astype(np.float32) * mask_rec
+        W_rec = (
+            conn_rng.normal(0.0, 1.0, size=(self.n_neurons, self.n_neurons)).astype(np.float32)
+            * mask_rec
+        )
         eigvals = np.linalg.eigvals(W_rec)
         max_eig = float(np.max(np.abs(eigvals))) + 1e-8
         self.W_rec = (W_rec * (self.spectral_radius / max_eig)).astype(np.float32)
@@ -58,7 +55,7 @@ class LeakyESNClassifier:
         )
 
         self.clf = BalancedRidgeReadout(alpha=self.readout_alpha)
-        self.train_time_sec: float = 0.0
+        self.train_time_sec = 0.0
 
     def _run_states(self, X: np.ndarray) -> np.ndarray:
         B, T, _ = X.shape
@@ -84,14 +81,14 @@ class LeakyESNClassifier:
         feats.append(states.std(axis=1))
         return np.concatenate(feats, axis=1).astype(np.float32)
 
-    def fit(self, X_train: np.ndarray, y_train: np.ndarray) -> "LeakyESNClassifier":
+    def fit(self, X_train: np.ndarray, y_train: np.ndarray):
         t0 = time.perf_counter()
         F_train = self._run_states(X_train)
         self.clf.fit(F_train, y_train)
         self.train_time_sec = time.perf_counter() - t0
         return self
 
-    def predict_and_measure(self, X_eval: np.ndarray) -> tuple[np.ndarray, float]:
+    def predict_and_measure(self, X_eval: np.ndarray):
         t0 = time.perf_counter()
         F_eval = self._run_states(X_eval)
         preds = self.clf.predict(F_eval)
@@ -100,7 +97,6 @@ class LeakyESNClassifier:
 
     @property
     def model_size_bytes(self) -> int:
-        assert self.clf.coef_ is not None and self.clf.intercept_ is not None
         return int(
             self.W_in.nbytes
             + self.W_rec.nbytes

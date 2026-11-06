@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""Milestone 1: Early runtime and firing-rate pilot (Slides 7, 11, 13)."""
-
-from __future__ import annotations
-
 import json
 from pathlib import Path
 import sys
@@ -18,7 +13,7 @@ from src.spiking.lif_reservoir import SpikingLIFReservoir
 from src.spiking.readout import SpikingReservoirClassifier
 
 
-def main() -> None:
+def main():
     with open(ROOT / "configs" / "default_experiment.yaml", "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
 
@@ -30,7 +25,7 @@ def main() -> None:
     res_cfg = cfg["reservoir"]
     pilot_records = []
 
-    print("=== Milestone 1: Runtime & Firing-Rate Pilot ===")
+    print("Running runtime and firing-rate check...")
     for n_neurons in res_cfg["pilot_sizes"]:
         for tau_mode, tau_val in [
             ("homogeneous", 80.0),
@@ -76,16 +71,14 @@ def main() -> None:
             }
             pilot_records.append(rec)
             print(
-                f"N={n_neurons:3d} | {tau_mode:13s} | Fit={rec['fit_time_sec']:.2f}s | "
-                f"Rate={rec['mean_firing_rate_hz']:5.2f} Hz | Silent={rec['silent_neuron_fraction']*100:4.1f}% | "
-                f"Val Macro-F1={rec['val_macro_f1']*100:5.2f}%"
+                f"  N={n_neurons} ({tau_mode}): time={rec['fit_time_sec']:.2f}s, "
+                f"rate={rec['mean_firing_rate_hz']:.2f} Hz, val_f1={rec['val_macro_f1']:.4f}"
             )
 
     out_dir = ROOT / "results"
     out_dir.mkdir(parents=True, exist_ok=True)
     with open(out_dir / "runtime_pilot.json", "w", encoding="utf-8") as f:
         json.dump(pilot_records, f, indent=2)
-    print(f"Saved pilot report to {out_dir / 'runtime_pilot.json'}")
 
 
 if __name__ == "__main__":
