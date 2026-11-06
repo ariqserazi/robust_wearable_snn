@@ -175,9 +175,9 @@ def plot_channel_loss(results: dict, out_dir: Path) -> Path:
     ax.set_xticklabels(labels, rotation=20, ha="right")
     ax.set_ylabel("Macro-F1 (%)")
     ax.set_ylim(30, 100)
-    ax.set_title("Single-Axis Channel Loss Evaluation")
+    ax.set_title("Single-Axis Channel Loss Evaluation", pad=28)
     ax.grid(True, axis="y", linestyle=":", alpha=0.5)
-    ax.legend(ncol=4, loc="upper center", bbox_to_anchor=(0.5, 1.15), frameon=True)
+    ax.legend(ncol=4, loc="upper center", bbox_to_anchor=(0.5, 1.13), frameon=True)
 
     out_path = out_dir / "fig3_channel_loss.png"
     fig.savefig(out_path)
