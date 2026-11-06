@@ -84,7 +84,7 @@ def main():
         fired = (v >= res_het.v_th).astype(np.float32)
         spikes[t, :] = fired[0]
         v = np.maximum(0.0, v - fired * res_het.v_th)
-        r = alpha * r + one_minus_alpha * fired + 0.15 * one_minus_alpha * v
+        r = alpha * r + one_minus_alpha * fired
         traces[t, :] = r[0]
 
     demo_data = {
