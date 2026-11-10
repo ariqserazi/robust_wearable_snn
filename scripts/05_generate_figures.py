@@ -20,11 +20,11 @@ from src.spiking.lif_reservoir import SpikingLIFReservoir, encode_sensory_inputs
 
 
 def main():
-    with open(ROOT / "configs" / "default_experiment.yaml", "r", encoding="utf-8") as f:
+    with open(ROOT / "configs" / "default_experiment.yaml") as f:
         cfg = yaml.safe_load(f)
 
     results_path = ROOT / "results" / "experiment_results.json"
-    with open(results_path, "r", encoding="utf-8") as f:
+    with open(results_path) as f:
         results = json.load(f)
 
     fig_dir = ROOT / "results" / "figures"
@@ -37,8 +37,8 @@ def main():
 
     splits = build_har_splits(
         raw_dir=ROOT / cfg["data"]["raw_dir"],
-        include_total_acc=bool(cfg["data"]["include_total_acc"]),
-        val_participant_count=int(cfg["data"]["val_participant_count"]),
+        include_total_acc=cfg["data"]["include_total_acc"],
+        val_participant_count=cfg["data"]["val_participant_count"],
     )
     walking_indices = np.where(splits.y_test == 0)[0]
     w_idx = int(walking_indices[0])
@@ -51,17 +51,17 @@ def main():
     res_cfg = cfg["reservoir"]
     res_het = SpikingLIFReservoir(
         n_inputs=len(splits.channel_names),
-        n_neurons=int(res_cfg["n_neurons"]),
+        n_neurons=res_cfg["n_neurons"],
         tau_mode="heterogeneous",
         tau_values_ms=het_tau,
-        dt_ms=float(cfg["data"]["dt_ms"]),
-        p_rec=float(res_cfg["p_rec"]),
-        excitatory_fraction=float(res_cfg["excitatory_fraction"]),
-        spectral_radius=float(res_cfg["spectral_radius"]),
-        input_scale=float(res_cfg["input_scale"]),
-        v_th=float(res_cfg["v_th"]),
-        bias_current=float(res_cfg["bias_current"]),
-        n_temporal_bins=int(res_cfg["n_temporal_bins"]),
+        dt_ms=cfg["data"]["dt_ms"],
+        p_rec=res_cfg["p_rec"],
+        excitatory_fraction=res_cfg["excitatory_fraction"],
+        spectral_radius=res_cfg["spectral_radius"],
+        input_scale=res_cfg["input_scale"],
+        v_th=res_cfg["v_th"],
+        bias_current=res_cfg["bias_current"],
+        n_temporal_bins=res_cfg["n_temporal_bins"],
         seed=0,
     )
 

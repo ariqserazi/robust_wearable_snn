@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def compute_classification_metrics(y_true: np.ndarray, y_pred: np.ndarray, activity_names: list):
+def compute_classification_metrics(y_true, y_pred, activity_names):
     y_true = np.asarray(y_true, dtype=np.int64)
     y_pred = np.asarray(y_pred, dtype=np.int64)
     K = len(activity_names)

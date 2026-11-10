@@ -8,20 +8,20 @@ from src.spiking.readout import BalancedRidgeReadout
 class LeakyESNClassifier:
     def __init__(
         self,
-        n_inputs: int,
-        n_neurons: int = 128,
-        tau_ms: float = 80.0,
-        dt_ms: float = 20.0,
-        p_rec: float = 0.15,
-        spectral_radius: float = 0.90,
-        input_scale: float = 0.65,
-        n_temporal_bins: int = 4,
-        readout_alpha: float = 10.0,
-        seed: int = 0,
+        n_inputs,
+        n_neurons=128,
+        tau_ms=80.0,
+        dt_ms=20.0,
+        p_rec=0.15,
+        spectral_radius=0.90,
+        input_scale=0.65,
+        n_temporal_bins=4,
+        readout_alpha=10.0,
+        seed=0,
     ):
         self.n_inputs = n_inputs
         self.n_encoded_inputs = n_inputs * 3
-        self.n_neurons = n_neurons
+        self.n_neurons = int(n_neurons)
         self.tau_ms = float(tau_ms)
         self.dt_ms = float(dt_ms)
         self.p_rec = float(p_rec)
@@ -57,7 +57,7 @@ class LeakyESNClassifier:
         self.clf = BalancedRidgeReadout(alpha=self.readout_alpha)
         self.train_time_sec = 0.0
 
-    def _run_states(self, X: np.ndarray) -> np.ndarray:
+    def _run_states(self, X):
         B, T, _ = X.shape
         N = self.n_neurons
         X_enc = encode_sensory_inputs(X)
@@ -81,14 +81,14 @@ class LeakyESNClassifier:
         feats.append(states.std(axis=1))
         return np.concatenate(feats, axis=1).astype(np.float32)
 
-    def fit(self, X_train: np.ndarray, y_train: np.ndarray):
+    def fit(self, X_train, y_train):
         t0 = time.perf_counter()
         F_train = self._run_states(X_train)
         self.clf.fit(F_train, y_train)
         self.train_time_sec = time.perf_counter() - t0
         return self
 
-    def predict_and_measure(self, X_eval: np.ndarray):
+    def predict_and_measure(self, X_eval):
         t0 = time.perf_counter()
         F_eval = self._run_states(X_eval)
         preds = self.clf.predict(F_eval)
@@ -96,7 +96,7 @@ class LeakyESNClassifier:
         return preds, eval_sec
 
     @property
-    def model_size_bytes(self) -> int:
+    def model_size_bytes(self):
         return int(
             self.W_in.nbytes
             + self.W_rec.nbytes

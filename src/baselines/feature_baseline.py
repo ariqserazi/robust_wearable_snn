@@ -4,7 +4,7 @@ import numpy as np
 from src.spiking.readout import BalancedRidgeReadout
 
 
-def extract_window_features(X: np.ndarray, n_bins: int = 4) -> np.ndarray:
+def extract_window_features(X, n_bins=4):
     B, T, C = X.shape
     feats = []
 
@@ -32,20 +32,20 @@ def extract_window_features(X: np.ndarray, n_bins: int = 4) -> np.ndarray:
 
 
 class WindowFeatureClassifier:
-    def __init__(self, alpha: float = 10.0, seed: int = 0):
+    def __init__(self, alpha=10.0, seed=0):
         self.alpha = float(alpha)
         self.seed = int(seed)
         self.clf = BalancedRidgeReadout(alpha=self.alpha)
         self.train_time_sec = 0.0
 
-    def fit(self, X_train: np.ndarray, y_train: np.ndarray):
+    def fit(self, X_train, y_train):
         t0 = time.perf_counter()
         F_train = extract_window_features(X_train)
         self.clf.fit(F_train, y_train)
         self.train_time_sec = time.perf_counter() - t0
         return self
 
-    def predict_and_measure(self, X_eval: np.ndarray):
+    def predict_and_measure(self, X_eval):
         t0 = time.perf_counter()
         F_eval = extract_window_features(X_eval)
         preds = self.clf.predict(F_eval)
@@ -53,5 +53,5 @@ class WindowFeatureClassifier:
         return preds, eval_sec
 
     @property
-    def model_size_bytes(self) -> int:
+    def model_size_bytes(self):
         return int(self.clf.coef_.nbytes + self.clf.intercept_.nbytes)

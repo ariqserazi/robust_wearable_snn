@@ -1,47 +1,57 @@
-from dataclasses import dataclass
 import time
 import numpy as np
 
 
-def encode_sensory_inputs(X: np.ndarray) -> np.ndarray:
+def encode_sensory_inputs(X):
     pos = np.maximum(0.0, X)
     neg = np.maximum(0.0, -X)
     return np.concatenate([X, pos, neg], axis=-1).astype(np.float32)
 
 
-@dataclass
 class ReservoirOutput:
-    features: np.ndarray
-    mean_spikes_per_window: float
-    mean_firing_rate_hz: float
-    mean_synops_per_window: float
-    silent_neuron_fraction: float
-    hyperactive_fraction: float
-    runtime_sec: float
-    spike_raster: np.ndarray = None
-    membrane_traces: np.ndarray = None
+    def __init__(
+        self,
+        features,
+        mean_spikes_per_window,
+        mean_firing_rate_hz,
+        mean_synops_per_window,
+        silent_neuron_fraction,
+        hyperactive_fraction,
+        runtime_sec,
+        spike_raster=None,
+        membrane_traces=None,
+    ):
+        self.features = features
+        self.mean_spikes_per_window = mean_spikes_per_window
+        self.mean_firing_rate_hz = mean_firing_rate_hz
+        self.mean_synops_per_window = mean_synops_per_window
+        self.silent_neuron_fraction = silent_neuron_fraction
+        self.hyperactive_fraction = hyperactive_fraction
+        self.runtime_sec = runtime_sec
+        self.spike_raster = spike_raster
+        self.membrane_traces = membrane_traces
 
 
 class SpikingLIFReservoir:
     def __init__(
         self,
-        n_inputs: int,
-        n_neurons: int = 128,
-        tau_mode: str = "homogeneous",
+        n_inputs,
+        n_neurons=128,
+        tau_mode="homogeneous",
         tau_values_ms=80.0,
-        dt_ms: float = 20.0,
-        p_rec: float = 0.15,
-        excitatory_fraction: float = 0.80,
-        spectral_radius: float = 0.90,
-        input_scale: float = 0.65,
-        v_th: float = 1.0,
-        bias_current: float = 0.15,
-        n_temporal_bins: int = 4,
-        seed: int = 0,
+        dt_ms=20.0,
+        p_rec=0.15,
+        excitatory_fraction=0.80,
+        spectral_radius=0.90,
+        input_scale=0.65,
+        v_th=1.0,
+        bias_current=0.15,
+        n_temporal_bins=4,
+        seed=0,
     ):
         self.n_inputs = n_inputs
         self.n_encoded_inputs = n_inputs * 3
-        self.n_neurons = n_neurons
+        self.n_neurons = int(n_neurons)
         self.tau_mode = tau_mode
         self.tau_values_ms = tau_values_ms
         self.dt_ms = float(dt_ms)
@@ -54,7 +64,6 @@ class SpikingLIFReservoir:
         self.n_temporal_bins = int(n_temporal_bins)
         self.seed = int(seed)
 
-        # Keep connectivity identical for the same seed across homogeneous and heterogeneous runs
         conn_rng = np.random.default_rng(self.seed * 10007 + 42)
 
         self.W_in = conn_rng.normal(
@@ -91,7 +100,7 @@ class SpikingLIFReservoir:
         self.tau_m = self._build_tau_vector()
         self.alpha = np.exp(-self.dt_ms / self.tau_m).astype(np.float32)
 
-    def _build_tau_vector(self) -> np.ndarray:
+    def _build_tau_vector(self):
         if self.tau_mode == "homogeneous":
             if isinstance(self.tau_values_ms, (list, tuple, np.ndarray)):
                 tau_val = float(self.tau_values_ms[0])
@@ -114,7 +123,7 @@ class SpikingLIFReservoir:
 
         raise ValueError(f"Unknown tau_mode: {self.tau_mode}")
 
-    def run_numpy(self, X: np.ndarray, return_traces: bool = False) -> ReservoirOutput:
+    def run_numpy(self, X, return_traces=False):
         t0 = time.perf_counter()
         B, T, _ = X.shape
         N = self.n_neurons

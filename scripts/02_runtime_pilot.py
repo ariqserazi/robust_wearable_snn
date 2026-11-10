@@ -14,13 +14,13 @@ from src.spiking.readout import SpikingReservoirClassifier
 
 
 def main():
-    with open(ROOT / "configs" / "default_experiment.yaml", "r", encoding="utf-8") as f:
+    with open(ROOT / "configs" / "default_experiment.yaml") as f:
         cfg = yaml.safe_load(f)
 
     splits = build_har_splits(
         raw_dir=ROOT / cfg["data"]["raw_dir"],
-        include_total_acc=bool(cfg["data"]["include_total_acc"]),
-        val_participant_count=int(cfg["data"]["val_participant_count"]),
+        include_total_acc=cfg["data"]["include_total_acc"],
+        val_participant_count=cfg["data"]["val_participant_count"],
     )
     res_cfg = cfg["reservoir"]
     pilot_records = []
@@ -33,17 +33,17 @@ def main():
         ]:
             reservoir = SpikingLIFReservoir(
                 n_inputs=len(splits.channel_names),
-                n_neurons=int(n_neurons),
+                n_neurons=n_neurons,
                 tau_mode=tau_mode,
                 tau_values_ms=tau_val,
-                dt_ms=float(cfg["data"]["dt_ms"]),
-                p_rec=float(res_cfg["p_rec"]),
-                excitatory_fraction=float(res_cfg["excitatory_fraction"]),
-                spectral_radius=float(res_cfg["spectral_radius"]),
-                input_scale=float(res_cfg["input_scale"]),
-                v_th=float(res_cfg["v_th"]),
-                bias_current=float(res_cfg["bias_current"]),
-                n_temporal_bins=int(res_cfg["n_temporal_bins"]),
+                dt_ms=cfg["data"]["dt_ms"],
+                p_rec=res_cfg["p_rec"],
+                excitatory_fraction=res_cfg["excitatory_fraction"],
+                spectral_radius=res_cfg["spectral_radius"],
+                input_scale=res_cfg["input_scale"],
+                v_th=res_cfg["v_th"],
+                bias_current=res_cfg["bias_current"],
+                n_temporal_bins=res_cfg["n_temporal_bins"],
                 seed=0,
             )
             clf = SpikingReservoirClassifier(reservoir, readout_alpha=10.0)
@@ -65,8 +65,8 @@ def main():
                 "mean_synops_per_window": round(val_out.mean_synops_per_window, 1),
                 "silent_neuron_fraction": round(val_out.silent_neuron_fraction, 4),
                 "hyperactive_fraction": round(val_out.hyperactive_fraction, 4),
-                "val_accuracy": round(float(val_metrics["accuracy"]), 4),
-                "val_macro_f1": round(float(val_metrics["macro_f1"]), 4),
+                "val_accuracy": round(val_metrics["accuracy"], 4),
+                "val_macro_f1": round(val_metrics["macro_f1"], 4),
                 "model_size_kb": round(clf.model_size_bytes / 1024.0, 2),
             }
             pilot_records.append(rec)
@@ -77,7 +77,7 @@ def main():
 
     out_dir = ROOT / "results"
     out_dir.mkdir(parents=True, exist_ok=True)
-    with open(out_dir / "runtime_pilot.json", "w", encoding="utf-8") as f:
+    with open(out_dir / "runtime_pilot.json", "w") as f:
         json.dump(pilot_records, f, indent=2)
 
 

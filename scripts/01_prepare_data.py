@@ -13,7 +13,7 @@ from src.data.dataset import build_har_splits
 
 
 def main():
-    with open(ROOT / "configs" / "default_experiment.yaml", "r", encoding="utf-8") as f:
+    with open(ROOT / "configs" / "default_experiment.yaml") as f:
         cfg = yaml.safe_load(f)
 
     raw_dir = ROOT / cfg["data"]["raw_dir"]
@@ -22,8 +22,8 @@ def main():
 
     splits = build_har_splits(
         raw_dir=raw_dir,
-        include_total_acc=bool(cfg["data"]["include_total_acc"]),
-        val_participant_count=int(cfg["data"]["val_participant_count"]),
+        include_total_acc=cfg["data"]["include_total_acc"],
+        val_participant_count=cfg["data"]["val_participant_count"],
         split_seed=42,
     )
 
@@ -33,7 +33,7 @@ def main():
         window_length=window_len,
         n_channels=n_channels,
         missing_fractions=cfg["corruption"]["intermittent_fractions"],
-        seed=int(cfg["corruption"]["mask_seed"]),
+        seed=cfg["corruption"]["mask_seed"],
     )
     channel_masks = generate_channel_loss_masks(
         n_windows=n_test,
@@ -78,7 +78,7 @@ def main():
         "val_participants": [int(x) for x in np.unique(splits.subj_val)],
         "test_participants": [int(x) for x in np.unique(splits.subj_test)],
     }
-    with open(proc_dir / "metadata.json", "w", encoding="utf-8") as f:
+    with open(proc_dir / "metadata.json", "w") as f:
         json.dump(meta, f, indent=2)
 
     print("Prepared UCI HAR splits and corruption masks:")

@@ -1,11 +1,9 @@
 import time
 import numpy as np
 
-from src.spiking.lif_reservoir import ReservoirOutput, SpikingLIFReservoir
-
 
 class BalancedRidgeReadout:
-    def __init__(self, alpha: float = 10.0):
+    def __init__(self, alpha=10.0):
         self.alpha = float(alpha)
         self.mean_ = None
         self.std_ = None
@@ -13,7 +11,7 @@ class BalancedRidgeReadout:
         self.intercept_ = None
         self.n_classes_ = 6
 
-    def fit(self, X: np.ndarray, y: np.ndarray):
+    def fit(self, X, y):
         N, D = X.shape
         classes = np.unique(y)
         K = len(classes)
@@ -44,21 +42,21 @@ class BalancedRidgeReadout:
         self.intercept_ = W_full[-1:, :]
         return self
 
-    def predict(self, X: np.ndarray) -> np.ndarray:
+    def predict(self, X):
         Xs = (X - self.mean_) / self.std_
         scores = Xs @ self.coef_ + self.intercept_
         return np.argmax(scores, axis=1).astype(np.int64)
 
 
 class SpikingReservoirClassifier:
-    def __init__(self, reservoir: SpikingLIFReservoir, readout_alpha: float = 10.0):
+    def __init__(self, reservoir, readout_alpha=10.0):
         self.reservoir = reservoir
         self.readout_alpha = float(readout_alpha)
         self.clf = BalancedRidgeReadout(alpha=self.readout_alpha)
         self.train_time_sec = 0.0
         self.train_reservoir_output = None
 
-    def fit(self, X_train: np.ndarray, y_train: np.ndarray):
+    def fit(self, X_train, y_train):
         t0 = time.perf_counter()
         res_out = self.reservoir.run_numpy(X_train, return_traces=False)
         self.clf.fit(res_out.features, y_train)
@@ -66,7 +64,7 @@ class SpikingReservoirClassifier:
         self.train_reservoir_output = res_out
         return self
 
-    def predict_and_measure(self, X_eval: np.ndarray, return_traces: bool = False):
+    def predict_and_measure(self, X_eval, return_traces=False):
         t0 = time.perf_counter()
         res_out = self.reservoir.run_numpy(X_eval, return_traces=return_traces)
         preds = self.clf.predict(res_out.features)
@@ -74,7 +72,7 @@ class SpikingReservoirClassifier:
         return preds, res_out, total_eval_sec
 
     @property
-    def model_size_bytes(self) -> int:
+    def model_size_bytes(self):
         res_bytes = (
             self.reservoir.W_in.nbytes
             + self.reservoir.W_rec.nbytes

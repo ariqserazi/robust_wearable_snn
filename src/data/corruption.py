@@ -2,11 +2,11 @@ import numpy as np
 
 
 def generate_intermittent_gap_masks(
-    n_windows: int,
-    window_length: int,
-    n_channels: int,
-    missing_fractions: list,
-    seed: int = 202610,
+    n_windows,
+    window_length,
+    n_channels,
+    missing_fractions,
+    seed=202610,
 ):
     masks = {}
     for frac in missing_fractions:
@@ -24,11 +24,7 @@ def generate_intermittent_gap_masks(
     return masks
 
 
-def generate_channel_loss_masks(
-    n_windows: int,
-    window_length: int,
-    channel_names: list,
-):
+def generate_channel_loss_masks(n_windows, window_length, channel_names):
     n_channels = len(channel_names)
     masks = {}
     for ch_idx, ch_name in enumerate(channel_names):
@@ -38,5 +34,5 @@ def generate_channel_loss_masks(
     return masks
 
 
-def apply_corruption_mask(X_standardized: np.ndarray, mask: np.ndarray) -> np.ndarray:
+def apply_corruption_mask(X_standardized, mask):
     return np.where(mask, X_standardized, 0.0).astype(np.float32)

@@ -21,26 +21,26 @@ from src.spiking.readout import SpikingReservoirClassifier
 
 
 def main():
-    with open(ROOT / "configs" / "default_experiment.yaml", "r", encoding="utf-8") as f:
+    with open(ROOT / "configs" / "default_experiment.yaml") as f:
         cfg = yaml.safe_load(f)
 
     splits = build_har_splits(
         raw_dir=ROOT / cfg["data"]["raw_dir"],
-        include_total_acc=bool(cfg["data"]["include_total_acc"]),
-        val_participant_count=int(cfg["data"]["val_participant_count"]),
+        include_total_acc=cfg["data"]["include_total_acc"],
+        val_participant_count=cfg["data"]["val_participant_count"],
     )
     res_cfg = cfg["reservoir"]
-    seeds = [int(s) for s in cfg["seeds"]]
-    fracs = [float(f) for f in cfg["corruption"]["intermittent_fractions"]]
+    seeds = cfg["seeds"]
+    fracs = cfg["corruption"]["intermittent_fractions"]
 
     tuning_path = ROOT / "results" / "tuning_results.json"
     if tuning_path.exists():
-        with open(tuning_path, "r", encoding="utf-8") as f:
+        with open(tuning_path) as f:
             tuned = json.load(f)
-        hom_tau = float(tuned["selected_homogeneous"]["tau_ms"])
-        hom_alpha = float(tuned["selected_homogeneous"]["readout_alpha"])
-        het_tau = [float(x) for x in tuned["selected_heterogeneous"]["tau_triplet_ms"]]
-        het_alpha = float(tuned["selected_heterogeneous"]["readout_alpha"])
+        hom_tau = tuned["selected_homogeneous"]["tau_ms"]
+        hom_alpha = tuned["selected_homogeneous"]["readout_alpha"]
+        het_tau = tuned["selected_heterogeneous"]["tau_triplet_ms"]
+        het_alpha = tuned["selected_heterogeneous"]["readout_alpha"]
     else:
         hom_tau, hom_alpha = 80.0, 5.0
         het_tau, het_alpha = [40.0, 160.0, 640.0], 5.0
@@ -51,7 +51,7 @@ def main():
         window_length=window_len,
         n_channels=n_channels,
         missing_fractions=fracs,
-        seed=int(cfg["corruption"]["mask_seed"]),
+        seed=cfg["corruption"]["mask_seed"],
     )
     channel_masks = generate_channel_loss_masks(
         n_windows=n_test,
@@ -87,41 +87,36 @@ def main():
         },
     }
 
+    common_res_kwargs = {
+        "n_inputs": n_channels,
+        "n_neurons": res_cfg["n_neurons"],
+        "dt_ms": cfg["data"]["dt_ms"],
+        "p_rec": res_cfg["p_rec"],
+        "excitatory_fraction": res_cfg["excitatory_fraction"],
+        "spectral_radius": res_cfg["spectral_radius"],
+        "input_scale": res_cfg["input_scale"],
+        "v_th": res_cfg["v_th"],
+        "bias_current": res_cfg["bias_current"],
+        "n_temporal_bins": res_cfg["n_temporal_bins"],
+    }
+
     for seed in seeds:
         print(f"Seed {seed}:")
         res_het = SpikingLIFReservoir(
-            n_inputs=n_channels,
-            n_neurons=int(res_cfg["n_neurons"]),
             tau_mode="heterogeneous",
             tau_values_ms=het_tau,
-            dt_ms=float(cfg["data"]["dt_ms"]),
-            p_rec=float(res_cfg["p_rec"]),
-            excitatory_fraction=float(res_cfg["excitatory_fraction"]),
-            spectral_radius=float(res_cfg["spectral_radius"]),
-            input_scale=float(res_cfg["input_scale"]),
-            v_th=float(res_cfg["v_th"]),
-            bias_current=float(res_cfg["bias_current"]),
-            n_temporal_bins=int(res_cfg["n_temporal_bins"]),
             seed=seed,
+            **common_res_kwargs,
         )
         clf_het = SpikingReservoirClassifier(res_het, readout_alpha=het_alpha).fit(
             splits.X_train_full, splits.y_train_full
         )
 
         res_hom = SpikingLIFReservoir(
-            n_inputs=n_channels,
-            n_neurons=int(res_cfg["n_neurons"]),
             tau_mode="homogeneous",
             tau_values_ms=hom_tau,
-            dt_ms=float(cfg["data"]["dt_ms"]),
-            p_rec=float(res_cfg["p_rec"]),
-            excitatory_fraction=float(res_cfg["excitatory_fraction"]),
-            spectral_radius=float(res_cfg["spectral_radius"]),
-            input_scale=float(res_cfg["input_scale"]),
-            v_th=float(res_cfg["v_th"]),
-            bias_current=float(res_cfg["bias_current"]),
-            n_temporal_bins=int(res_cfg["n_temporal_bins"]),
             seed=seed,
+            **common_res_kwargs,
         )
         clf_hom = SpikingReservoirClassifier(res_hom, readout_alpha=hom_alpha).fit(
             splits.X_train_full, splits.y_train_full
@@ -129,13 +124,13 @@ def main():
 
         clf_esn = LeakyESNClassifier(
             n_inputs=n_channels,
-            n_neurons=int(res_cfg["n_neurons"]),
+            n_neurons=res_cfg["n_neurons"],
             tau_ms=hom_tau,
-            dt_ms=float(cfg["data"]["dt_ms"]),
-            p_rec=float(res_cfg["p_rec"]),
-            spectral_radius=float(res_cfg["spectral_radius"]),
-            input_scale=float(res_cfg["input_scale"]),
-            n_temporal_bins=int(res_cfg["n_temporal_bins"]),
+            dt_ms=cfg["data"]["dt_ms"],
+            p_rec=res_cfg["p_rec"],
+            spectral_radius=res_cfg["spectral_radius"],
+            input_scale=res_cfg["input_scale"],
+            n_temporal_bins=res_cfg["n_temporal_bins"],
             readout_alpha=hom_alpha,
             seed=seed,
         ).fit(splits.X_train_full, splits.y_train_full)
@@ -219,7 +214,7 @@ def main():
 
     out_dir = ROOT / "results"
     out_dir.mkdir(parents=True, exist_ok=True)
-    with open(out_dir / "experiment_results.json", "w", encoding="utf-8") as f:
+    with open(out_dir / "experiment_results.json", "w") as f:
         json.dump(results, f, indent=2)
 
 

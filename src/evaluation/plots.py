@@ -5,8 +5,22 @@ import numpy as np
 COLORS = {
     "Heterogeneous LIF": "#1B5E20",
     "Homogeneous LIF": "#D95F02",
-    "Non-Spiking ESN": "#377EB8",
-    "Feature Classifier": "#7570B3",
+    "Non-Spiking ESN": "#2B7BBA",
+    "Feature Classifier": "#756BB1",
+}
+
+MARKERS = {
+    "Heterogeneous LIF": "o",
+    "Homogeneous LIF": "o",
+    "Non-Spiking ESN": "s",
+    "Feature Classifier": "^",
+}
+
+LINESTYLES = {
+    "Heterogeneous LIF": "-",
+    "Homogeneous LIF": "-",
+    "Non-Spiking ESN": "--",
+    "Feature Classifier": "--",
 }
 
 
@@ -16,103 +30,135 @@ def setup_plot_style():
             "font.family": "sans-serif",
             "font.size": 10.5,
             "axes.titlesize": 12,
+            "axes.titleweight": "bold",
             "axes.labelsize": 10.5,
+            "legend.fontsize": 9.5,
+            "figure.dpi": 180,
+            "savefig.dpi": 180,
+            "savefig.bbox": "tight",
             "axes.spines.top": False,
             "axes.spines.right": False,
-            "figure.dpi": 160,
-            "savefig.dpi": 200,
-            "savefig.bbox": "tight",
         }
     )
 
 
-def plot_intermittent_robustness(results: dict, out_dir: Path) -> Path:
+def plot_intermittent_robustness(results, out_dir):
     setup_plot_style()
     fracs = [float(f) for f in results["intermittent_fractions"]]
     pcts = [int(round(f * 100)) for f in fracs]
-    models = ["Heterogeneous LIF", "Homogeneous LIF", "Non-Spiking ESN", "Feature Classifier"]
 
     fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.4))
 
     ax = axes[0]
-    for m in models:
-        f1_matrix = np.array(
-            [
-                [seed_res["intermittent"][f"{f:.2f}"]["macro_f1"] for f in fracs]
-                for seed_res in results["models"][m]["seeds"]
-            ]
-        ) * 100.0
-        mean_f1 = f1_matrix.mean(axis=0)
-        std_f1 = f1_matrix.std(axis=0)
-        marker = "o" if "LIF" in m else ("s" if "ESN" in m else "^")
-        ls = "-" if "LIF" in m else "--"
-        ax.plot(pcts, mean_f1, label=m, color=COLORS[m], marker=marker, linewidth=2.0, linestyle=ls)
-        ax.fill_between(pcts, mean_f1 - std_f1, mean_f1 + std_f1, color=COLORS[m], alpha=0.15)
+    for model_name, m_data in results["models"].items():
+        seeds_list = m_data["seeds"]
+        f1_mat = np.array(
+            [[s["intermittent"][f"{f:.2f}"]["macro_f1"] * 100.0 for f in fracs] for s in seeds_list]
+        )
+        mean_f1 = f1_mat.mean(axis=0)
+        std_f1 = f1_mat.std(axis=0)
+
+        ax.plot(
+            pcts,
+            mean_f1,
+            label=model_name,
+            color=COLORS[model_name],
+            marker=MARKERS[model_name],
+            linestyle=LINESTYLES[model_name],
+            linewidth=2.2,
+        )
+        ax.fill_between(
+            pcts, mean_f1 - std_f1, mean_f1 + std_f1, color=COLORS[model_name], alpha=0.15
+        )
 
     ax.set_title("Macro-F1 vs Missing Sensor Data")
     ax.set_xlabel("Missing Readings per Window (%)")
     ax.set_ylabel("Macro-F1 (%)")
     ax.set_xticks(pcts)
     ax.grid(True, linestyle=":", alpha=0.5)
-    ax.legend(frameon=True, loc="lower left")
+    ax.legend(loc="lower left", frameon=True)
 
     ax2 = axes[1]
-    for m in models:
-        acc_matrix = np.array(
-            [
-                [seed_res["intermittent"][f"{f:.2f}"]["accuracy"] for f in fracs]
-                for seed_res in results["models"][m]["seeds"]
-            ]
-        ) * 100.0
-        loss_matrix = acc_matrix - acc_matrix[:, :1]
-        mean_loss = loss_matrix.mean(axis=0)
-        std_loss = loss_matrix.std(axis=0)
-        marker = "o" if "LIF" in m else ("s" if "ESN" in m else "^")
-        ls = "-" if "LIF" in m else "--"
-        ax2.plot(pcts, mean_loss, label=m, color=COLORS[m], marker=marker, linewidth=2.0, linestyle=ls)
-        ax2.fill_between(pcts, mean_loss - std_loss, mean_loss + std_loss, color=COLORS[m], alpha=0.15)
+    for model_name, m_data in results["models"].items():
+        seeds_list = m_data["seeds"]
+        acc_mat = np.array(
+            [[s["intermittent"][f"{f:.2f}"]["accuracy"] * 100.0 for f in fracs] for s in seeds_list]
+        )
+        acc_drop = acc_mat - acc_mat[:, [0]]
+        mean_drop = acc_drop.mean(axis=0)
+        std_drop = acc_drop.std(axis=0)
 
-    ax2.axhline(0.0, color="gray", linewidth=1, linestyle=":")
+        ax2.plot(
+            pcts,
+            mean_drop,
+            label=model_name,
+            color=COLORS[model_name],
+            marker=MARKERS[model_name],
+            linestyle=LINESTYLES[model_name],
+            linewidth=2.2,
+        )
+        ax2.fill_between(
+            pcts, mean_drop - std_drop, mean_drop + std_drop, color=COLORS[model_name], alpha=0.15
+        )
+
+    ax2.axhline(0.0, color="gray", linestyle=":", linewidth=1.0)
     ax2.set_title("Accuracy Drop vs Clean Score")
     ax2.set_xlabel("Missing Readings per Window (%)")
     ax2.set_ylabel("Accuracy Change (%)")
     ax2.set_xticks(pcts)
     ax2.grid(True, linestyle=":", alpha=0.5)
 
-    out_path = out_dir / "fig1_intermittent_robustness.png"
+    out_path = Path(out_dir) / "fig1_intermittent_robustness.png"
     fig.savefig(out_path)
     plt.close(fig)
     return out_path
 
 
-def plot_paired_seed_and_per_class(results: dict, out_dir: Path) -> Path:
+def plot_paired_seed_and_per_class(results, out_dir):
     setup_plot_style()
     fracs = [float(f) for f in results["intermittent_fractions"]]
     pcts = [f"{int(round(f * 100))}%" for f in fracs]
 
     het_seeds = results["models"]["Heterogeneous LIF"]["seeds"]
     hom_seeds = results["models"]["Homogeneous LIF"]["seeds"]
-    n_seeds = len(het_seeds)
 
-    diff_f1 = np.zeros((n_seeds, len(fracs)))
-    for s_idx in range(n_seeds):
-        for f_idx, f in enumerate(fracs):
-            k = f"{f:.2f}"
-            diff_f1[s_idx, f_idx] = (
-                het_seeds[s_idx]["intermittent"][k]["macro_f1"]
-                - hom_seeds[s_idx]["intermittent"][k]["macro_f1"]
-            ) * 100.0
+    diff_mat = np.array(
+        [
+            [
+                (het["intermittent"][f"{f:.2f}"]["macro_f1"] - hom["intermittent"][f"{f:.2f}"]["macro_f1"])
+                * 100.0
+                for f in fracs
+            ]
+            for het, hom in zip(het_seeds, hom_seeds)
+        ]
+    )
 
-    fig, axes = plt.subplots(1, 2, figsize=(12.0, 4.4))
+    fig, axes = plt.subplots(1, 2, figsize=(11.8, 4.5))
 
     ax = axes[0]
     x = np.arange(len(fracs))
-    means = diff_f1.mean(axis=0)
-    stds = diff_f1.std(axis=0)
-    ax.bar(x, means, yerr=stds, capsize=4, color="#2E7D32", alpha=0.80, width=0.5)
-    for s_idx in range(n_seeds):
-        jitter = (s_idx - (n_seeds - 1) / 2.0) * 0.06
-        ax.scatter(x + jitter, diff_f1[s_idx], color="#222222", s=24, zorder=5, alpha=0.8)
+    mean_diff = diff_mat.mean(axis=0)
+    std_diff = diff_mat.std(axis=0)
+
+    ax.bar(
+        x,
+        mean_diff,
+        yerr=std_diff,
+        capsize=4,
+        color="#1B5E20",
+        alpha=0.75,
+        width=0.55,
+    )
+    for seed_idx in range(diff_mat.shape[0]):
+        jitter = (seed_idx - 2) * 0.06
+        ax.scatter(
+            x + jitter,
+            diff_mat[seed_idx],
+            color="#111111",
+            s=28,
+            zorder=4,
+            alpha=0.75,
+        )
     ax.axhline(0.0, color="black", linewidth=1.0, linestyle="--")
     ax.set_xticks(x)
     ax.set_xticklabels(pcts)
@@ -144,13 +190,13 @@ def plot_paired_seed_and_per_class(results: dict, out_dir: Path) -> Path:
     ax2.grid(True, axis="x", linestyle=":", alpha=0.5)
     ax2.legend(loc="lower right", frameon=True)
 
-    out_path = out_dir / "fig2_paired_seed_differences.png"
+    out_path = Path(out_dir) / "fig2_paired_seed_differences.png"
     fig.savefig(out_path)
     plt.close(fig)
     return out_path
 
 
-def plot_channel_loss(results: dict, out_dir: Path) -> Path:
+def plot_channel_loss(results, out_dir):
     setup_plot_style()
     channels = results["channel_names"]
     models = ["Heterogeneous LIF", "Homogeneous LIF", "Non-Spiking ESN", "Feature Classifier"]
@@ -190,13 +236,13 @@ def plot_channel_loss(results: dict, out_dir: Path) -> Path:
     ax.grid(True, axis="y", linestyle=":", alpha=0.5)
     ax.legend(ncol=4, loc="upper center", bbox_to_anchor=(0.5, 1.13), frameon=True)
 
-    out_path = out_dir / "fig3_channel_loss.png"
+    out_path = Path(out_dir) / "fig3_channel_loss.png"
     fig.savefig(out_path)
     plt.close(fig)
     return out_path
 
 
-def plot_activity_cost_tradeoff(results: dict, out_dir: Path) -> Path:
+def plot_activity_cost_tradeoff(results, out_dir):
     setup_plot_style()
     fracs = [float(f) for f in results["intermittent_fractions"]]
     pcts = [int(round(f * 100)) for f in fracs]
@@ -236,13 +282,13 @@ def plot_activity_cost_tradeoff(results: dict, out_dir: Path) -> Path:
     ax2.grid(True, linestyle=":", alpha=0.5)
     ax2.legend(frameon=True, loc="lower right")
 
-    out_path = out_dir / "fig4_activity_cost_tradeoff.png"
+    out_path = Path(out_dir) / "fig4_activity_cost_tradeoff.png"
     fig.savefig(out_path)
     plt.close(fig)
     return out_path
 
 
-def plot_neural_dynamics_demo(demo_data: dict, out_dir: Path) -> Path:
+def plot_neural_dynamics_demo(demo_data, out_dir):
     setup_plot_style()
     time_sec = np.arange(128) * 0.02
     x_corrupt = demo_data["x_corrupt"]
@@ -321,7 +367,7 @@ def plot_neural_dynamics_demo(demo_data: dict, out_dir: Path) -> Path:
     ax3.legend(loc="lower left", fontsize=8.5, frameon=True)
 
     plt.tight_layout()
-    out_path = out_dir / "fig5_neural_dynamics_demo.png"
+    out_path = Path(out_dir) / "fig5_neural_dynamics_demo.png"
     fig.savefig(out_path)
     plt.close(fig)
     return out_path

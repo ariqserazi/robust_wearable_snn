@@ -1,7 +1,6 @@
 import json
 from pathlib import Path
 import sys
-import numpy as np
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,15 +15,15 @@ from src.spiking.readout import BalancedRidgeReadout
 
 
 def evaluate_reservoir_across_alphas(
-    reservoir: SpikingLIFReservoir,
-    X_fit: np.ndarray,
-    y_fit: np.ndarray,
-    X_val_clean: np.ndarray,
-    X_val_gap20: np.ndarray,
-    X_val_gap30: np.ndarray,
-    y_val: np.ndarray,
-    activity_names: list,
-    alpha_grid: list,
+    reservoir,
+    X_fit,
+    y_fit,
+    X_val_clean,
+    X_val_gap20,
+    X_val_gap30,
+    y_val,
+    activity_names,
+    alpha_grid,
 ):
     F_fit = reservoir.run_numpy(X_fit).features
     F_val_clean = reservoir.run_numpy(X_val_clean).features
@@ -33,14 +32,14 @@ def evaluate_reservoir_across_alphas(
 
     out_records = []
     for alpha in alpha_grid:
-        readout = BalancedRidgeReadout(alpha=float(alpha)).fit(F_fit, y_fit)
+        readout = BalancedRidgeReadout(alpha=alpha).fit(F_fit, y_fit)
         p_clean = readout.predict(F_val_clean)
         p_gap20 = readout.predict(F_val_gap20)
         p_gap30 = readout.predict(F_val_gap30)
 
-        f1_clean = float(compute_classification_metrics(y_val, p_clean, activity_names)["macro_f1"])
-        f1_gap20 = float(compute_classification_metrics(y_val, p_gap20, activity_names)["macro_f1"])
-        f1_gap30 = float(compute_classification_metrics(y_val, p_gap30, activity_names)["macro_f1"])
+        f1_clean = compute_classification_metrics(y_val, p_clean, activity_names)["macro_f1"]
+        f1_gap20 = compute_classification_metrics(y_val, p_gap20, activity_names)["macro_f1"]
+        f1_gap30 = compute_classification_metrics(y_val, p_gap30, activity_names)["macro_f1"]
 
         out_records.append(
             {
@@ -54,13 +53,13 @@ def evaluate_reservoir_across_alphas(
 
 
 def main():
-    with open(ROOT / "configs" / "default_experiment.yaml", "r", encoding="utf-8") as f:
+    with open(ROOT / "configs" / "default_experiment.yaml") as f:
         cfg = yaml.safe_load(f)
 
     splits = build_har_splits(
         raw_dir=ROOT / cfg["data"]["raw_dir"],
-        include_total_acc=bool(cfg["data"]["include_total_acc"]),
-        val_participant_count=int(cfg["data"]["val_participant_count"]),
+        include_total_acc=cfg["data"]["include_total_acc"],
+        val_participant_count=cfg["data"]["val_participant_count"],
     )
     res_cfg = cfg["reservoir"]
     tune_cfg = cfg["tuning"]
@@ -84,17 +83,17 @@ def main():
     for tau_ms in tune_cfg["homogeneous_tau_candidates_ms"]:
         reservoir = SpikingLIFReservoir(
             n_inputs=len(splits.channel_names),
-            n_neurons=int(res_cfg["n_neurons"]),
+            n_neurons=res_cfg["n_neurons"],
             tau_mode="homogeneous",
-            tau_values_ms=float(tau_ms),
-            dt_ms=float(cfg["data"]["dt_ms"]),
-            p_rec=float(res_cfg["p_rec"]),
-            excitatory_fraction=float(res_cfg["excitatory_fraction"]),
-            spectral_radius=float(res_cfg["spectral_radius"]),
-            input_scale=float(res_cfg["input_scale"]),
-            v_th=float(res_cfg["v_th"]),
-            bias_current=float(res_cfg["bias_current"]),
-            n_temporal_bins=int(res_cfg["n_temporal_bins"]),
+            tau_values_ms=tau_ms,
+            dt_ms=cfg["data"]["dt_ms"],
+            p_rec=res_cfg["p_rec"],
+            excitatory_fraction=res_cfg["excitatory_fraction"],
+            spectral_radius=res_cfg["spectral_radius"],
+            input_scale=res_cfg["input_scale"],
+            v_th=res_cfg["v_th"],
+            bias_current=res_cfg["bias_current"],
+            n_temporal_bins=res_cfg["n_temporal_bins"],
             seed=0,
         )
         recs = evaluate_reservoir_across_alphas(
@@ -120,17 +119,17 @@ def main():
     for tau_triplet in tune_cfg["heterogeneous_tau_candidates_ms"]:
         reservoir = SpikingLIFReservoir(
             n_inputs=len(splits.channel_names),
-            n_neurons=int(res_cfg["n_neurons"]),
+            n_neurons=res_cfg["n_neurons"],
             tau_mode="heterogeneous",
-            tau_values_ms=list(tau_triplet),
-            dt_ms=float(cfg["data"]["dt_ms"]),
-            p_rec=float(res_cfg["p_rec"]),
-            excitatory_fraction=float(res_cfg["excitatory_fraction"]),
-            spectral_radius=float(res_cfg["spectral_radius"]),
-            input_scale=float(res_cfg["input_scale"]),
-            v_th=float(res_cfg["v_th"]),
-            bias_current=float(res_cfg["bias_current"]),
-            n_temporal_bins=int(res_cfg["n_temporal_bins"]),
+            tau_values_ms=tau_triplet,
+            dt_ms=cfg["data"]["dt_ms"],
+            p_rec=res_cfg["p_rec"],
+            excitatory_fraction=res_cfg["excitatory_fraction"],
+            spectral_radius=res_cfg["spectral_radius"],
+            input_scale=res_cfg["input_scale"],
+            v_th=res_cfg["v_th"],
+            bias_current=res_cfg["bias_current"],
+            n_temporal_bins=res_cfg["n_temporal_bins"],
             seed=0,
         )
         recs = evaluate_reservoir_across_alphas(
@@ -156,7 +155,7 @@ def main():
 
     out_dir = ROOT / "results"
     out_dir.mkdir(parents=True, exist_ok=True)
-    with open(out_dir / "tuning_results.json", "w", encoding="utf-8") as f:
+    with open(out_dir / "tuning_results.json", "w") as f:
         json.dump(tuning_summary, f, indent=2)
 
     print("Best homogeneous:", best_hom_cfg)

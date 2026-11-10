@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from pathlib import Path
 import numpy as np
 
@@ -29,32 +28,14 @@ ALL_9_CHANNELS = CORE_6_CHANNELS + [
 ]
 
 
-@dataclass
 class HARDataSplits:
-    X_train_full: np.ndarray
-    y_train_full: np.ndarray
-    subj_train_full: np.ndarray
-
-    X_fit: np.ndarray
-    y_fit: np.ndarray
-    subj_fit: np.ndarray
-
-    X_val: np.ndarray
-    y_val: np.ndarray
-    subj_val: np.ndarray
-
-    X_test: np.ndarray
-    y_test: np.ndarray
-    subj_test: np.ndarray
-
-    channel_names: list
-    activity_names: list
-    scaler_mean: np.ndarray
-    scaler_std: np.ndarray
+    def __init__(self, **kwargs):
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
 
-def _load_split_raw(dataset_dir: Path, split: str, channels: list):
-    signals_dir = dataset_dir / split / "Inertial Signals"
+def _load_split_raw(dataset_dir, split, channels):
+    signals_dir = Path(dataset_dir) / split / "Inertial Signals"
     channel_arrays = []
     for ch in channels:
         fpath = signals_dir / f"{ch}_{split}.txt"
@@ -62,8 +43,8 @@ def _load_split_raw(dataset_dir: Path, split: str, channels: list):
         channel_arrays.append(arr)
 
     X = np.stack(channel_arrays, axis=-1)
-    y = np.loadtxt(dataset_dir / split / f"y_{split}.txt", dtype=np.int64) - 1
-    subj = np.loadtxt(dataset_dir / split / f"subject_{split}.txt", dtype=np.int64)
+    y = np.loadtxt(Path(dataset_dir) / split / f"y_{split}.txt", dtype=np.int64) - 1
+    subj = np.loadtxt(Path(dataset_dir) / split / f"subject_{split}.txt", dtype=np.int64)
     return X, y, subj
 
 
@@ -83,7 +64,6 @@ def build_har_splits(
     test_subjects = np.unique(subj_test)
     assert len(np.intersect1d(train_subjects, test_subjects)) == 0
 
-    # Hold out validation participants from the training set only
     rng = np.random.default_rng(split_seed)
     shuffled_train_subj = rng.permutation(train_subjects)
     val_subjects = np.sort(shuffled_train_subj[:val_participant_count])
