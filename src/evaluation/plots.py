@@ -170,7 +170,18 @@ def plot_channel_loss(results: dict, out_dir: Path) -> Path:
         offset = (idx - 1.5) * width
         ax.bar(x + offset, ch_scores, width, label=m, color=COLORS[m], alpha=0.88)
 
-    labels = channels + ["Mean"]
+    pretty_channel_map = {
+        "body_acc_x": r"Body Acc$_x$",
+        "body_acc_y": r"Body Acc$_y$",
+        "body_acc_z": r"Body Acc$_z$",
+        "body_gyro_x": r"Body Gyro$_x$",
+        "body_gyro_y": r"Body Gyro$_y$",
+        "body_gyro_z": r"Body Gyro$_z$",
+        "total_acc_x": r"Total Acc$_x$",
+        "total_acc_y": r"Total Acc$_y$",
+        "total_acc_z": r"Total Acc$_z$",
+    }
+    labels = [pretty_channel_map.get(ch, ch) for ch in channels] + ["Mean"]
     ax.set_xticks(x)
     ax.set_xticklabels(labels, rotation=20, ha="right")
     ax.set_ylabel("Macro-F1 (%)")
@@ -245,19 +256,24 @@ def plot_neural_dynamics_demo(demo_data: dict, out_dir: Path) -> Path:
     ax0 = axes[0, 0]
     t_decay = np.linspace(0, 1.0, 200)
     tau_fast, tau_med, tau_slow = demo_data["tau_triplet_ms"]
-    ax0.plot(t_decay * 1000, np.exp(-t_decay * 1000 / tau_fast), color="#1B9E77", lw=2.0, label=f"Fast ({tau_fast:.0f} ms)")
-    ax0.plot(t_decay * 1000, np.exp(-t_decay * 1000 / tau_med), color="#D95F02", lw=2.0, label=f"Medium ({tau_med:.0f} ms)")
-    ax0.plot(t_decay * 1000, np.exp(-t_decay * 1000 / tau_slow), color="#7570B3", lw=2.0, label=f"Slow ({tau_slow:.0f} ms)")
+    ax0.plot(t_decay * 1000, np.exp(-t_decay * 1000 / tau_fast), color="#1B9E77", lw=2.0, label=rf"Fast ($\tau_m = {tau_fast:.0f}$ ms)")
+    ax0.plot(t_decay * 1000, np.exp(-t_decay * 1000 / tau_med), color="#D95F02", lw=2.0, label=rf"Medium ($\tau_m = {tau_med:.0f}$ ms)")
+    ax0.plot(t_decay * 1000, np.exp(-t_decay * 1000 / tau_slow), color="#7570B3", lw=2.0, label=rf"Slow ($\tau_m = {tau_slow:.0f}$ ms)")
     ax0.set_title("Exponential Decay Curves")
     ax0.set_xlabel("Time (ms)")
-    ax0.set_ylabel("Retained Signal")
+    ax0.set_ylabel(r"Retained Signal $\exp(-t / \tau_m)$")
     ax0.grid(True, linestyle=":", alpha=0.5)
     ax0.legend(frameon=True)
 
     ax1 = axes[0, 1]
+    pretty_ch = {
+        "body_acc_x": r"Body Acc$_x$",
+        "body_acc_y": r"Body Acc$_y$",
+        "body_gyro_z": r"Body Gyro$_z$",
+    }
     for ch_label in ["body_acc_x", "body_acc_y", "body_gyro_z"]:
         idx = demo_data["channel_indices"][ch_label]
-        ax1.plot(time_sec, x_corrupt[:, idx], lw=1.5, label=ch_label)
+        ax1.plot(time_sec, x_corrupt[:, idx], lw=1.5, label=pretty_ch[ch_label])
     ax1.axvspan(gap_start * 0.02, gap_end * 0.02, color="#FFCDD2", alpha=0.5, label="30% Missing Gap")
     ax1.set_title(f"Sensor Input ({demo_data['activity_label']}) with 30% Gap")
     ax1.set_xlabel("Time (s)")
