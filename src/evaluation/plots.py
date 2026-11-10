@@ -108,7 +108,7 @@ def plot_intermittent_robustness(results, out_dir):
     ax2.set_xticks(pcts)
     ax2.grid(True, linestyle=":", alpha=0.5)
 
-    out_path = Path(out_dir) / "fig1_intermittent_robustness.png"
+    out_path = Path(out_dir) / "intermittent_gaps.png"
     fig.savefig(out_path)
     plt.close(fig)
     return out_path
@@ -190,7 +190,7 @@ def plot_paired_seed_and_per_class(results, out_dir):
     ax2.grid(True, axis="x", linestyle=":", alpha=0.5)
     ax2.legend(loc="lower right", frameon=True)
 
-    out_path = Path(out_dir) / "fig2_paired_seed_differences.png"
+    out_path = Path(out_dir) / "seed_diffs_per_class.png"
     fig.savefig(out_path)
     plt.close(fig)
     return out_path
@@ -236,7 +236,7 @@ def plot_channel_loss(results, out_dir):
     ax.grid(True, axis="y", linestyle=":", alpha=0.5)
     ax.legend(ncol=4, loc="upper center", bbox_to_anchor=(0.5, 1.13), frameon=True)
 
-    out_path = Path(out_dir) / "fig3_channel_loss.png"
+    out_path = Path(out_dir) / "channel_loss.png"
     fig.savefig(out_path)
     plt.close(fig)
     return out_path
@@ -282,7 +282,7 @@ def plot_activity_cost_tradeoff(results, out_dir):
     ax2.grid(True, linestyle=":", alpha=0.5)
     ax2.legend(frameon=True, loc="lower right")
 
-    out_path = Path(out_dir) / "fig4_activity_cost_tradeoff.png"
+    out_path = Path(out_dir) / "spike_cost.png"
     fig.savefig(out_path)
     plt.close(fig)
     return out_path
@@ -367,7 +367,7 @@ def plot_neural_dynamics_demo(demo_data, out_dir):
     ax3.legend(loc="lower left", fontsize=8.5, frameon=True)
 
     plt.tight_layout()
-    out_path = Path(out_dir) / "fig5_neural_dynamics_demo.png"
+    out_path = Path(out_dir) / "walking_gap_demo.png"
     fig.savefig(out_path)
     plt.close(fig)
     return out_path

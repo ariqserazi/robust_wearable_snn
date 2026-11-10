@@ -22,11 +22,11 @@ pip install -r requirements.txt
 Run the pipeline steps in order:
 
 ```bash
-python3 scripts/01_prepare_data.py
-python3 scripts/02_runtime_pilot.py
-python3 scripts/03_tune_time_constants.py
-python3 scripts/04_run_experiments.py
-python3 scripts/05_generate_figures.py
+python3 scripts/prepare_data.py
+python3 scripts/pilot_runtime.py
+python3 scripts/tune_hyperparams.py
+python3 scripts/run_experiments.py
+python3 scripts/make_plots.py
 ```
 
 The first script downloads the official UCI HAR dataset archive into `data/raw/` and writes the processed splits and corruption masks to `data/processed/`. Output metrics and figures are saved under `results/`.

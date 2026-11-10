@@ -53,7 +53,7 @@ def evaluate_reservoir_across_alphas(
 
 
 def main():
-    with open(ROOT / "configs" / "default_experiment.yaml") as f:
+    with open(ROOT / "configs" / "config.yaml") as f:
         cfg = yaml.safe_load(f)
 
     splits = build_har_splits(
